@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/google/uuid"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 	"math/rand"
 	"modified-agent-ipfs/config"
 	agent "modified-agent-ipfs/worker_agent"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 type Main struct {
@@ -64,7 +65,6 @@ func main() {
 	}
 	logger.Info("viper set up done")
 
-
 	w := agent.NewAgent(ctx, cfg)
 	logger.Info("Providing values")
 	go func() {
@@ -84,9 +84,14 @@ func main() {
 		}
 	}()
 
-	//provideAllValues(ctx, keys, w, logger)
+	provideAllValues(ctx, keys, w, logger)
+	count := 0
 	for {
-		time.Sleep(5*time.Minute)
+		time.Sleep(5 * time.Minute)
+		count++
+		if count%288 == 0 { //if 288*5 minutes have passed which is 24 hours reprovide values
+			provideAllValues(ctx, keys, w, logger)
+		}
 	}
 }
 
@@ -95,14 +100,14 @@ func provideAllValues(ctx context.Context, keys [256][]byte, a *agent.Agent, log
 	keyIndexes := a.GetIndexes()
 	logger.Info("Started providing " + strconv.Itoa(len(keyIndexes)) + " keys")
 	str := "Going to provide key indexes:"
-	for _,v := range keyIndexes {
-		str= str + " " + strconv.Itoa(v)
+	for _, v := range keyIndexes {
+		str = str + " " + strconv.Itoa(v)
 	}
 	logger.Info(str)
 	t1 := time.Now()
 	count := 0
 	finish := make(chan int)
-	for _,v := range keyIndexes {
+	for _, v := range keyIndexes {
 		id, err := uuid.NewUUID()
 		if err != nil {
 			logger.Error(err.Error())
@@ -117,7 +122,7 @@ func provideAllValues(ctx context.Context, keys [256][]byte, a *agent.Agent, log
 		}(v, finish)
 	}
 	for {
-		<- finish
+		<-finish
 		count++
 		if count == len(keyIndexes) {
 			break
@@ -161,4 +166,3 @@ func readKeys(logger *zap.Logger) ([256][]byte, error) {
 	}
 	return res, nil
 }
-
